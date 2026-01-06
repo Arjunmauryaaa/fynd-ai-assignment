@@ -1,7 +1,10 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from database import SessionLocal, Review
 from schemas import ReviewCreate
 import requests, os, json, re
+from dotenv import load_dotenv
+
 
 # ---------------- LOAD ENV ----------------
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
