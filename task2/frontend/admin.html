@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Dashboard</title>
+</head>
+<body>
+  <h2>Admin Dashboard</h2>
+  <button onclick="loadReviews()">Refresh</button>
+
+  <div id="reviews"></div>
+
+  <script>
+    function loadReviews() {
+      fetch("http://127.0.0.1:8000/admin/reviews")
+        .then(res => res.json())
+        .then(data => {
+          let html = "";
+          data.forEach(r => {
+            html += `
+              <hr>
+              ⭐ Rating: ${r.rating}<br>
+              Review: ${r.review}<br>
+              Summary: ${r.summary}<br>
+              Action: ${r.action}<br>
+            `;
+          });
+          document.getElementById("reviews").innerHTML = html;
+        });
+    }
+  </script>
+</body>
+</html>

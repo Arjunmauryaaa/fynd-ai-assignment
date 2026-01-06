@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User Dashboard</title>
+</head>
+<body>
+  <h2>Submit Review</h2>
+
+  <label>Rating:</label>
+  <select id="rating">
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <option value="4">4</option>
+    <option value="5">5</option>
+  </select>
+
+  <br><br>
+
+  <textarea id="review" rows="5" cols="40" placeholder="Write your review"></textarea>
+
+  <br><br>
+
+  <button onclick="submitReview()">Submit</button>
+
+  <p id="response"></p>
+
+  <script>
+    function submitReview() {
+      fetch("http://127.0.0.1:8000/submit-review", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          rating: parseInt(document.getElementById("rating").value),
+          review: document.getElementById("review").value
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("response").innerText = data.ai_response;
+      })
+      .catch(() => {
+        document.getElementById("response").innerText = "Error submitting review";
+      });
+    }
+  </script>
+</body>
+</html>
