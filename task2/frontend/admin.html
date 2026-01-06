@@ -9,24 +9,37 @@
 
   <div id="reviews"></div>
 
-  <script>
-    function loadReviews() {
-      fetch("http://127.0.0.1:8000/admin/reviews")
-        .then(res => res.json())
-        .then(data => {
-          let html = "";
-          data.forEach(r => {
-            html += `
-              <hr>
-              ⭐ Rating: ${r.rating}<br>
-              Review: ${r.review}<br>
-              Summary: ${r.summary}<br>
-              Action: ${r.action}<br>
-            `;
-          });
-          document.getElementById("reviews").innerHTML = html;
-        });
-    }
-  </script>
+ <script>
+  const API_URL = "https://fynd-ai-assignment.onrender.com";
+
+  function submitReview() {
+    fetch(`${API_URL}/submit-review`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        rating: parseInt(document.getElementById("rating").value),
+        review: document.getElementById("review").value
+      })
+    })
+    .then(async res => {
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || JSON.stringify(data));
+      }
+      return data;
+    })
+    .then(data => {
+      document.getElementById("response").innerText = data.ai_response;
+    })
+    .catch(err => {
+      console.error(err);
+      document.getElementById("response").innerText =
+        "Backend error: " + err.message;
+    });
+  }
+</script>
+
 </body>
 </html>

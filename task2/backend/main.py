@@ -2,22 +2,21 @@ from fastapi import FastAPI, HTTPException
 from database import SessionLocal, Review
 from schemas import ReviewCreate
 import requests, os, json, re
-from dotenv import load_dotenv
 
 # ---------------- LOAD ENV ----------------
-load_dotenv()
-API_KEY = os.getenv("OPENROUTER_API_KEY")
-
-if not API_KEY:
-    raise RuntimeError("OPENROUTER_API_KEY not found in .env")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 app = FastAPI(title="Fynd AI Task 2")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 # ---------------- JSON EXTRACTOR ----------------
 def extract_json(text: str):
-    """
-    Safely extract JSON object from LLM output
-    """
     match = re.search(r"\{[\s\S]*\}", text)
     if match:
         return match.group()
@@ -25,44 +24,48 @@ def extract_json(text: str):
 
 # ---------------- AI CALL ----------------
 def call_llm(prompt: str):
+    if not OPENROUTER_API_KEY:
+        raise HTTPException(status_code=500, detail="OpenRouter API key missing")
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+        # 👇 MUST be your deployed backend URL
+        "HTTP-Referer": "https://fynd-ai-assignment.onrender.com",
+        "X-Title": "Fynd AI Internship Task"
+    }
+
+    payload = {
+        "model": "mistralai/mistral-7b-instruct",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0
+    }
+
     response = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {API_KEY}",
-            "HTTP-Referer": "http://localhost",
-            "X-Title": "Fynd AI Task 2",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": "mistralai/mistral-7b-instruct",
-            "messages": [
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant. Follow instructions strictly."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "temperature": 0
-        },
+        headers=headers,
+        json=payload,
         timeout=30
     )
 
-    response.raise_for_status()
+    if response.status_code != 200:
+        print("OpenRouter Error:", response.text)
+        raise HTTPException(status_code=500, detail="LLM request failed")
+
     data = response.json()
     return data["choices"][0]["message"]["content"]
 
 # ---------------- USER SUBMIT REVIEW ----------------
 @app.post("/submit-review")
 def submit_review(data: ReviewCreate):
+
     if not data.review.strip():
         raise HTTPException(status_code=400, detail="Review cannot be empty")
 
     db = SessionLocal()
 
-    # ---- USER RESPONSE PROMPT ----
     user_prompt = f"""
     User gave {data.rating} stars.
 
@@ -72,41 +75,28 @@ def submit_review(data: ReviewCreate):
     Write a polite and friendly reply to the user.
     """
 
-    # ---- ADMIN JSON PROMPT ----
     admin_prompt = f"""
-    You are a JSON API.
-
     Return ONLY valid JSON.
-    No markdown.
-    No explanation text.
 
     Review:
     {data.review}
 
-    Return EXACTLY this format:
-
     {{
-      "summary": "one sentence summary of the review",
-      "action": "recommended next action for admin"
+      "summary": "one sentence summary",
+      "action": "recommended admin action"
     }}
     """
 
-    # ---- AI CALLS ----
     ai_response = call_llm(user_prompt)
-    admin_output = call_llm(admin_prompt)
+    admin_response = call_llm(admin_prompt)
 
-    # ---- PARSE ADMIN JSON ----
-    json_text = extract_json(admin_output)
+    json_text = extract_json(admin_response)
 
-    if json_text:
-        try:
-            parsed = json.loads(json_text)
-        except:
-            parsed = {"summary": "N/A", "action": "N/A"}
-    else:
-        parsed = {"summary": "N/A", "action": "N/A"}
+    try:
+        parsed = json.loads(json_text) if json_text else {}
+    except:
+        parsed = {}
 
-    # ---- SAVE TO DB ----
     review = Review(
         rating=data.rating,
         review=data.review,
@@ -117,7 +107,6 @@ def submit_review(data: ReviewCreate):
 
     db.add(review)
     db.commit()
-    db.refresh(review)
 
     return {
         "message": "Review submitted successfully",
