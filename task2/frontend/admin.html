@@ -4,42 +4,43 @@
   <title>Admin Dashboard</title>
 </head>
 <body>
-  <h2>Admin Dashboard</h2>
-  <button onclick="loadReviews()">Refresh</button>
+  <h2>Admin Reviews</h2>
 
   <div id="reviews"></div>
 
- <script>
-  const API_URL = "https://fynd-ai-assignment.onrender.com";
+  <script>
+    const API_URL = "https://fynd-ai-assignment.onrender.com";
 
-  function submitReview() {
-    fetch(`${API_URL}/submit-review`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        rating: parseInt(document.getElementById("rating").value),
-        review: document.getElementById("review").value
+    fetch(`${API_URL}/admin/reviews`)
+      .then(res => res.json())
+      .then(data => {
+        const container = document.getElementById("reviews");
+
+        if (data.length === 0) {
+          container.innerHTML = "<p>No reviews yet</p>";
+          return;
+        }
+
+        data.forEach(r => {
+          const div = document.createElement("div");
+          div.style.border = "1px solid #ccc";
+          div.style.padding = "10px";
+          div.style.marginBottom = "10px";
+
+          div.innerHTML = `
+            <p><b>Rating:</b> ${r.rating}</p>
+            <p><b>Review:</b> ${r.review}</p>
+            <p><b>AI Summary:</b> ${r.summary}</p>
+            <p><b>Admin Action:</b> ${r.action}</p>
+          `;
+
+          container.appendChild(div);
+        });
       })
-    })
-    .then(async res => {
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.detail || JSON.stringify(data));
-      }
-      return data;
-    })
-    .then(data => {
-      document.getElementById("response").innerText = data.ai_response;
-    })
-    .catch(err => {
-      console.error(err);
-      document.getElementById("response").innerText =
-        "Backend error: " + err.message;
-    });
-  }
-</script>
-
+      .catch(() => {
+        document.getElementById("reviews").innerText =
+          "Error loading reviews";
+      });
+  </script>
 </body>
 </html>
