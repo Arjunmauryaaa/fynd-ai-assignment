@@ -26,8 +26,10 @@
   <p id="response"></p>
 
   <script>
+    const API_URL = "https://fynd-ai-assignment.onrender.com";
+
     function submitReview() {
-      fetch("http://127.0.0.1:8000/submit-review", {
+      fetch(`${API_URL}/submit-review`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
